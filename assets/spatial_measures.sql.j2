@@ -1,0 +1,28 @@
+WITH 
+  distance_from_shore as (
+    SELECT
+      FORMAT("lon:%+07.2f_lat:%+07.2f", ROUND(lon/0.01)*0.01, ROUND(lat/0.01)*0.01) AS gridcode,
+      distance_from_shore_m
+    FROM
+    `{{ distance_from_shore }}`
+  ),
+  distance_from_port as (
+    SELECT
+      FORMAT("lon:%+07.2f_lat:%+07.2f", ROUND(lon/0.01)*0.01, ROUND(lat/0.01)*0.01) AS gridcode,
+      distance_from_port_m
+    FROM
+    `{{ distance_from_port }}`
+  ),
+  elevation as (
+    SELECT
+      FORMAT("lon:%+07.2f_lat:%+07.2f", ROUND(lon/0.01)*0.01, ROUND(lat/0.01)*0.01) AS gridcode,
+      elevation_m
+    FROM
+    `{{ bathymetry }}`
+  )
+
+SELECT
+  *
+FROM elevation
+LEFT JOIN distance_from_shore USING (gridcode)
+LEFT JOIN distance_from_port USING (gridcode)

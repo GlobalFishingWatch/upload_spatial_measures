@@ -1,0 +1,22 @@
+[
+  {
+    "name": "gridcode",
+    "type": "STRING",
+    "description": "Concatenation of lat lon in a particular format"
+  },
+  {
+    "name": "elevation_m",
+    "type": "FLOAT",
+    "description": "elevation below or above sea level in meters"
+  },
+  {
+    "name": "distance_from_shore_m",
+    "type": "FLOAT",
+    "description": "Distance from the nearest point on shore in meters"
+  },
+  {
+    "name": "distance_from_port_m",
+    "type": "FLOAT",
+    "description": "Distance from the nearest point on port in meters"
+  }
+]

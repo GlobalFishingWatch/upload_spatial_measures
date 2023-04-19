@@ -1,0 +1,14 @@
+services:
+  upload_spatial_measures:
+    image: upload_spatial_measures
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ".:/app/"
+      - "gcp:/root/.config/"
+    working_dir: /app
+
+volumes:
+  gcp:
+    external: true
