@@ -6,5 +6,6 @@ from setuptools import setup
 setup(
     name="upload_measures",
     version='1.0.0',
-    author="matias@globalfishingwatch.org"
+    author="matias@globalfishingwatch.org",
+    py_modules=[]
 )

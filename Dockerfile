@@ -16,7 +16,8 @@ RUN ls -lh && pip install -r requirements.txt
 
 # Install package
 COPY . /app/
-RUN pip install -e .
+# RUN pip install -e .
+RUN python -m pip install -e .
 
 # Setup the entrypoint for quickly executing the pipelines
 ENTRYPOINT ["./main.py"]

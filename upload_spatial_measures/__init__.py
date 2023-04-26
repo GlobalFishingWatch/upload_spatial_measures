@@ -200,7 +200,7 @@ def run_upload_measures(arguments):
 
     # 9. Uploads text file to GCS.
     if prompt_accepted(input('#  Do you want to upload the file to GCS? (y/n)?'), False):
-        upload_blob(translated_path, f'{gcs_temp}/{translated_path})
+        upload_blob(translated_path, f'{gcs_temp}/{translated_path}')
 
     # 10. Run the SQL query to merge layers.
     logger.info('Using the text file in GCS, we proceed to run the sql query to merge layers.')
