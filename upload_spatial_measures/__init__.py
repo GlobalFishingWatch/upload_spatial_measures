@@ -3,7 +3,7 @@
 # Runs upload measures
 # Requires a raster TIFF file
 # It is important to run it inside a Google VM because the files to work are larger.
-import argparse, json, logging, re, subprocess, time
+import argparse, json, logging, re, subprocess, time, sys
 
 from google.cloud import storage
 from google.cloud import bigquery
@@ -50,18 +50,25 @@ def upload_blob(source_file_name, destination_blob_name):
     blob.upload_from_filename(source_file_name)
     print(f"File {source_file_name} uploaded to {destination_blob_name}.")
 
-def create_tables_if_not_exists(destination_table, labels):
+def schema_json2builder():
+    """ Reads json schema and convert to array of bigquery.SchemaFields """
+    schema=None
+    with open('./assets/spatial_measures_clustered_schema.json') as schemafield:
+        columns = json.load(schemafield)
+        schema = list(map(lambda c:
+                          bigquery.SchemaField(c['name'],c['type'],mode=c['mode'],description=c['description']),
+                          columns))
+    return schema
+
+def create_tables_if_not_exists(client, destination_table, labels=None):
     """Creates tables if they do not exists.
     If it doesn't exist, create it. And if exists, deletes the data of date range.
 
-    :param client: Client of BQ.
-    :type client: BigQuery.Client.
     :param destination_table: dataset.table of BQ.
     :type destination_table: str.
     :param labels: the label of the dataset. Default None.
     :type labels: dict.
     """
-    client = bigquery.Client()
     destination_table_ds, destination_table_tb = destination_table.split('.')
     destination_dataset_ref = bigquery.DatasetReference(client.project, destination_table_ds)
     destination_table_ref = destination_dataset_ref.table(destination_table_tb)
@@ -89,6 +96,45 @@ def create_tables_if_not_exists(destination_table, labels):
         logger.error(f'Unrecongnized error: {err}.')
 
 
+def run_estimation_query(client, query, destination, labels=None):
+    run_query(client, query, destination, labels, True)
+
+def run_query(client, query, destination, labels=None, estimate=False):
+    """Runs the query using the client.
+
+    :param client: BQ client.
+    :type client: BigQuery.Client.
+    :param query: The query.
+    :type query: str.
+    :param labels: the label of the dataset. Default None.
+    :type labels: dict.
+    :param estimate: If wants to get the estimation of the query.
+    :type client: bool.
+    """
+    job_config = bigquery.QueryJobConfig(
+        dry_run=estimate,
+        use_query_cache=False,
+        priority=bigquery.QueryPriority.BATCH,
+        use_legacy_sql=False,
+        write_disposition='WRITE_APPEND',
+        destination=destination,
+        labels=labels,
+    )
+
+    logger.info(f'Execute {("estimate" if estimate else "real")} BATCH query, destination {destination}')
+    if not estimate:
+        logger.info(f'=====Query STARTS======\n{query}\n====QUERY ENDS====')
+    try:
+        query_job = client.query(query, job_config=job_config)  # Make an API request.
+        logger.info(f'Job {query_job.job_id} is currently in state {query_job.state}')
+        if estimate:
+            logger.info(f'Estimation: This query will process {query_job.total_bytes_processed} bytes ({query_job.total_bytes_processed/pow(1024,3)} GB).')
+        else:
+            query_job.result() # Wait for the job to complete.
+
+    except Exception as err:
+        logger.error(f'Unknown Error has occurred {err}.')
+        sys.exit(1)
 
 def run_upload_measures(arguments):
     parser = argparse.ArgumentParser(description='Run upload  spatial_measures')
@@ -198,11 +244,13 @@ def run_upload_measures(arguments):
         ], stdin=gdaltranslatecmd.stdout, check=True, stdout=outfile)
     logger.info(f'Result in path <{translated_path}>.')
 
-    # 9. Uploads text file to GCS.
-    if prompt_accepted(input('#  Do you want to upload the file to GCS? (y/n)?'), False):
-        upload_blob(translated_path, f'{gcs_temp}/{translated_path}')
+    # 9. Uploads text file to GCS. This task should be rather to run in Google VM.
+    upload_blob(translated_path, f'{gcs_temp}/{translated_path}')
 
     # 10. Run the SQL query to merge layers.
+
+    bqclient = bigquery.Client()
+    create_tables_if_not_exists(bqclient, destination_table)
     logger.info('Using the text file in GCS, we proceed to run the sql query to merge layers.')
     query_template = templates.get_template('spatial_measures.sql.j2')
     query = query_template.render(
@@ -210,6 +258,10 @@ def run_upload_measures(arguments):
         distance_from_port=dist_from_port,
         bathymetry=bathymetry,
     )
+    # Run query to calc how much bytes will spend
+    run_estimation_query(bqclient, query, destination_table)
+    # Run query and calc research positions
+    run_query(bqclient, query, destination_table)
 
 
     ### ALL DONE

@@ -1,4 +1,4 @@
-# Uploads spetial_measures
+# Uploads spatial measures
 
 The upload spatial measures project would be used as a tool for updating the GEO metrics information about our pipeline.
 It will took the TIFF and convert it to the right GEO format if necessary and change the unit of values from kilometers to meters if required. At the end will convert the values in `XYZ` format to be easily readable in a table. It will upload the data to the table and will create the look up table.
